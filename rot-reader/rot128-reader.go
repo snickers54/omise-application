@@ -6,6 +6,7 @@ import (
 	"os"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/snickers54/omise-application/cipher"
 )
 
 // Rot128Reader implements io.Reader that transforms
@@ -45,8 +46,10 @@ func (r *Rot128Reader) initScanner() {
 
 func (r *Rot128Reader) Scan() (string, bool) {
 	data := []byte{}
-	if ok := r.scanner.Scan(); ok {
-		data = cipher.Rot128(r.scanner.Bytes())
+	ok := r.scanner.Scan()
+	if ok {
+		data := r.scanner.Bytes()
+		cipher.Rot128(data)
 	}
-	return data, ok
+	return string(data), ok
 }

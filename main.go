@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/omise/challenges/ROTreader"
+	"github.com/snickers54/omise-application/ROTreader"
 )
 
 func main() {
