@@ -1,4 +1,4 @@
-package cipher
+package rot128
 
 func Rot128(buf []byte) {
 	for idx := range buf {

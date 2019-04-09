@@ -1,4 +1,4 @@
-package ROTreader
+package rot128
 
 import "bytes"
 
