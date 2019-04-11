@@ -28,7 +28,7 @@ func main() {
 	defer reader.Close()
 
 	workerPool := internal.NewWorkerPool()
-
+	// we use a WaitGroup to make sure we will wait ALL go routines at the end to finish
 	workerPool.Wg.Add(workerPool.NbWorker)
 	for i := 0; i < workerPool.NbWorker; i++ {
 		go workerPool.Run(i)
