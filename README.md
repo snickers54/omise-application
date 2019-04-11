@@ -45,7 +45,7 @@ Since 2018 and Golang 1.5+, by default, Go programs run with GOMAXPROCS set to t
 
 Therefore, there is no need for my main to contains the famous `runtime.GOMAXPROCS(runtime.NumCPU())`
 
-## Omise co limit and throttling
+## Omise.co limit and throttling
 I did here a really simple thing, which is telling my go routine to sleep for an arbitrary 5s whenever it gets a `429 Too Many Requests` response. 
 
 This could be obviously done better, but the Omise.co API doesn't provide any insights on how many requests per seconds or minutes per IP or credentials it allows and since it seems to be handled by NGINX and not the API itself, there is no timestamps details to have a dynamic/smart retry. 
