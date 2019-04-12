@@ -9,6 +9,7 @@ import (
 	// will load .env file on import, remove boilerplate code in our main
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/snickers54/omise-application/internal"
+	"github.com/snickers54/omise-application/internal/utils"
 	"github.com/snickers54/omise-application/pkg/rot128"
 )
 
