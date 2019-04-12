@@ -1,21 +1,20 @@
 # Setup
-Needs Golang 1.5+ for using go modules.  
+Needs Golang 1.11+ for using go modules.  
 From the `cmd/song-pah-pa` folder:  
 
 `go mod tidy && go build && ./song-pah-pa ../../assets/fng.1000.csv.rot128`
 
 # Song Pah Pa
-I will explain here my train of thoughts while working on this exercise. I think my solution could be even better, but I already spent a lot of time on it, and software engineering is about finding the right balance between time, complexity and solving a problem. 
+I will explain here my train of thoughts while working on this exercise. I think my solution could be improved, but I already spent a lot of time on it, and software engineering is about finding the right balance between time, complexity and solving a problem. 
 
 ## ROT 128
-The first thing I did was to read the existing code, the ROT128 reader suggested felt not right per my experience for multiple reasons. 
+The first thing I did was to read the existing code, the existing ROT128 reader felt not right per my experience for multiple reasons:
 
-- The package is called cipher however is a mix of Reader and actual cipher algorithm (rot128 itself).
 - I don't need the Writer, only the Reader
-- The existing Reader would put everything in-memory, the example files given seems to indicate the number of lines, and I suspect bigger files could be given as input. 
+- The existing Reader would put everything in-memory, the example files given seems to indicate the number of lines, and I suspect bigger files could be given as input. Therefore be a problem if not enough memory available.
 - One of the bonus is to have a minimum memory footprint, therefore using a Scanner and read the file Line by Line would be more efficient than saving everything in-memory and then decipher it. 
 
-For the reasons mentionned above, I decide to rewrite my own Reader (using a Scanner the same way you would read a Stream). I had to reimplement the SplitFunc for the Scanner since I'm reading ciphered data and here it's obvious I've to read CR and NL chars that are ROT128. 
+For the reasons mentionned above, I decided to rewrite my own Reader (using a Scanner). I had to reimplement the SplitFunc for the Scanner since I'm reading ciphered data and here it's obvious I've to read CR and NL chars that are ROT128. 
 
 ## Omise-go Golang library
 I used the existing library in an attempt to save time and not reinvent the wheel. That let me focus on the core problem which is concurrency and efficiency.
@@ -29,7 +28,7 @@ Since some currencies can have really big numbers, I'm thinking about THB or VND
 
 Here I made a tradeoff, this Big Integer is a runtime type and therefore add overheads (memory and CPU). But I prefer my software to be slower and consuming more memory than having unexpected behavior if passed really big number of transactions that could cause an integer overflow. 
 
-I used a mutex to make sure the goroutines didn't write at the same time on the stats object. Avoiding race conditions and inaccurate counting. 
+I used a mutex to make sure the goroutines didn't write at the same time on the Stats object. Avoiding race conditions and inaccurate counting. 
 
 ## Dependencies
 I used the (go modules)[https://github.com/golang/go/wiki/Modules] which means my project is only compatible with golang 1.11+.
@@ -50,3 +49,8 @@ I did here a really simple thing, which is telling my go routine to sleep for an
 
 This could be obviously done better, but the Omise.co API doesn't provide any insights on how many requests per seconds or minutes per IP or credentials it allows and since it seems to be handled by NGINX and not the API itself, there is no timestamps details to have a dynamic/smart retry. 
 
+## Missing
+
+- More tests
+- More statistics
+- GoDoc
