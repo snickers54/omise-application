@@ -30,3 +30,21 @@ func (s Stats) String() string {
 	line4 := fmt.Sprintf("average per person: %s\t%s", currency, average.String())
 	return fmt.Sprintf("%s%s%s\n%s\n", line1, line2, line3, line4)
 }
+
+func (s Stats) AddSuccessTx(amount int64) {
+	bigAmount := big.NewInt(amount)
+	s.Mutex.Lock()
+	s.NbSuccessful = s.NbSuccessful + 1
+	s.NbDonations = s.NbDonations + 1
+	s.TotalAmount.Add(s.TotalAmount, bigAmount)
+	s.Mutex.Unlock()
+}
+
+func (s Stats) AddFailedTx(amount int64) {
+	bigAmount := big.NewInt(amount)
+	s.Mutex.Lock()
+	s.NbDonations = s.NbDonations + 1
+	s.TotalFaulty.Add(s.TotalFaulty, bigAmount)
+	s.Mutex.Unlock()
+
+}

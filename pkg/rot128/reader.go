@@ -16,13 +16,12 @@ type Rot128Reader struct {
 }
 
 func (r *Rot128Reader) Scan() (string, bool) {
-	data := []byte{}
-	ok := r.scanner.Scan()
-	if ok {
-		data = r.scanner.Bytes()
-		Rot128(data)
+	if ok := r.scanner.Scan(); !ok {
+		return "", false
 	}
-	return string(data), ok
+	data := r.scanner.Bytes()
+	Rot128(data)
+	return string(data), true
 }
 
 func (r *Rot128Reader) Close() {

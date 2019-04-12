@@ -27,7 +27,6 @@ type WorkerPool struct {
 	NbWorker     int
 	ChannelWork  chan *[]string
 	ChannelsQuit []chan bool
-	ChannelLimit chan bool
 	Stats
 	Positions
 }
@@ -43,10 +42,9 @@ func NewWorkerPool() *WorkerPool {
 	posYear, _ := strconv.Atoi(os.Getenv("POS_YEAR"))
 	posMonth, _ := strconv.Atoi(os.Getenv("POS_MONTH"))
 	return &WorkerPool{
-		Wg:           sync.WaitGroup{},
-		NbWorker:     nbWorker,
-		ChannelWork:  make(chan *[]string),
-		ChannelLimit: make(chan bool),
+		Wg:          sync.WaitGroup{},
+		NbWorker:    nbWorker,
+		ChannelWork: make(chan *[]string),
 		Positions: Positions{
 			Amount: posAmount,
 			Name:   posName,
@@ -79,44 +77,30 @@ func (c *WorkerPool) Run(number int) {
 		}).Error("Connection to Omise API failed")
 		return
 	}
-loop:
 	for {
-		select {
-		case <-c.ChannelLimit:
-			log.Warn(fmt.Sprintf("Worker #%d Reached API requests limit, waiting 5s", number))
-			time.Sleep(5 * time.Second)
-			continue
 		// this is called receive operator, it's a native mechanism to know if the channel is empty AND closed so we can quit gracefully
 		// https://golang.org/ref/spec#Receive_operator
-		case row, ok := <-c.ChannelWork:
-			if !ok {
-				// break apply to the innermost structure (switch, for, etc..)
-				// so we have to tell explicitely we want to break the for loop
-				break loop
+		row, ok := <-c.ChannelWork
+		if !ok {
+			break
+		}
+		for {
+			if retry := c.charge(row, client); retry == false {
+				break
 			}
-			bigAmount, ok := c.charge(row, client)
-			// avoid race conditions by using mutex
-			c.Stats.Mutex.Lock()
-			if ok {
-				c.Stats.NbSuccessful = c.Stats.NbSuccessful + 1
-				c.Stats.TotalAmount.Add(c.Stats.TotalAmount, bigAmount)
-			} else {
-				c.Stats.TotalFaulty.Add(c.Stats.TotalFaulty, bigAmount)
-			}
-			c.Stats.NbDonations = c.Stats.NbDonations + 1
-			c.Stats.Mutex.Unlock()
+			log.Warn(fmt.Sprintf("Worker #%d Reached API requests limit, waiting 5s", number))
+			time.Sleep(5 * time.Second)
 		}
 	}
 }
 
-func (c *WorkerPool) charge(rowPtr *[]string, client *omise.Client) (*big.Int, bool) {
+func (c *WorkerPool) charge(rowPtr *[]string, client *omise.Client) bool {
 	// Creates a token from a test card.
 	// here we don't actually check the errors on Atoi, if the values are not numbers, we will get 0
 	// it will then fail later on, so it's not necessary to check
 	row := *rowPtr
 	log.Println(row)
 	amount, _ := strconv.ParseInt(row[c.Positions.Amount], 10, 0)
-	bigAmount := big.NewInt(amount)
 	year, _ := strconv.Atoi(row[c.Positions.Year])
 	month, _ := strconv.Atoi(row[c.Positions.Month])
 	token, createToken := &omise.Token{}, &operations.CreateToken{
@@ -126,12 +110,12 @@ func (c *WorkerPool) charge(rowPtr *[]string, client *omise.Client) (*big.Int, b
 		ExpirationYear:  year,
 	}
 	if e := client.Do(token, createToken); e != nil {
-		log.Error(e)
-		if checkLimitAPIError(e) == true {
-			c.ChannelWork <- rowPtr
-			c.ChannelLimit <- true
+		retry := true
+		if checkLimitAPIError(e) == false {
+			retry = false
+			c.Stats.AddFailedTx(amount)
 		}
-		return bigAmount, false
+		return retry
 	}
 
 	// Creates a charge from the token
@@ -141,17 +125,19 @@ func (c *WorkerPool) charge(rowPtr *[]string, client *omise.Client) (*big.Int, b
 		Card:     token.ID,
 	}
 	if e := client.Do(charge, createCharge); e != nil {
-		log.Error(e)
-		if checkLimitAPIError(e) == true {
-			c.ChannelWork <- rowPtr
-			c.ChannelLimit <- true
+		retry := true
+		if checkLimitAPIError(e) == false {
+			retry = false
+			c.Stats.AddFailedTx(amount)
 		}
-		return bigAmount, false
+		return retry
 	}
-	return bigAmount, true
+	c.Stats.AddSuccessTx(amount)
+	return false
 }
 
 func checkLimitAPIError(err error) bool {
+	log.Error(err)
 	// we can't look for *omise.Error, because the limit is enforced via NGINX and therefore recognize as a ErrTransport
 	if errTransport, ok := err.(*omise.ErrTransport); ok {
 		return strings.Contains(errTransport.Error(), "429 Too Many Requests")

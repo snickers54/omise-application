@@ -9,7 +9,6 @@ import (
 	// will load .env file on import, remove boilerplate code in our main
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/snickers54/omise-application/internal"
-	"github.com/snickers54/omise-application/internal/utils"
 	"github.com/snickers54/omise-application/pkg/rot128"
 )
 
@@ -19,6 +18,7 @@ func init() {
 
 func main() {
 	// want to time track, to see average performance
+	// we could actually only use `time` from the Shell, but this function can be used in inner scopes to breakdown functions times
 	defer utils.TimeTrack(time.Now(), "main")
 	defer utils.PrintMemUsage()
 	if len(os.Args) < 2 {
